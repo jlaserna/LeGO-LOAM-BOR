@@ -133,6 +133,8 @@ class FeatureAssociation {
   void checkSystemInitialization();
   void updateTransformation();
 
+  void updateTransformationClique();
+
   void integrateTransformation();
   void publishCloud();
   void publishOdometry();

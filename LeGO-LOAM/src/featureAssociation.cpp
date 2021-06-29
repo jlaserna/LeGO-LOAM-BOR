@@ -35,8 +35,16 @@
 //      (IROS). October 2018.
 
 #include "featureAssociation.h"
+#include "extension.cpp"
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
 
 const float RAD2DEG = 180.0 / M_PI;
+
+int num_folder = 0;
 
 FeatureAssociation::FeatureAssociation(ros::NodeHandle &node,
                                        Channel<ProjectionOut> &input_channel,
@@ -1114,6 +1122,144 @@ void FeatureAssociation::checkSystemInitialization() {
   systemInitedLM = true;
 }
 
+
+void FeatureAssociation::updateTransformationClique() {
+  if (laserCloudCornerLastNum < 10 || laserCloudSurfLastNum < 100) return;
+
+  num_folder++;
+
+  std::cout << "SURFACE" << std::endl << std::endl;
+
+  std::cout << "Size surfPointsFlat: " << surfPointsFlat->points.size() << std::endl;
+  std::cout << "Size laserCloudSurfLast: " << laserCloudSurfLast->points.size() << std::endl;
+
+  //std::vector<pcl::PointCloud<PointType>::Ptr> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
+  std::vector<std::vector<int>> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
+
+  std::ofstream myfile;
+
+  std::string dirname = "/home/javier/Documents/UPMResearchCAR-Robocity/cloudMatcher/Output/";
+  std::stringstream ss;
+
+  ss.clear();
+  std::string filename = "surfPointsFlat_";
+  ss << dirname << filename << num_folder << ".csv";
+  ss >> filename;
+
+  myfile.open(filename);
+
+  for(int i = 0; i < surfPointsFlat->points.size(); i++ ) {
+    myfile << surfPointsFlat->points[i].x << "," << surfPointsFlat->points[i].y << "," << surfPointsFlat->points[i].z << std::endl;
+  }
+
+  myfile.close();
+
+  ss.clear();
+  filename = "laserCloudSurfLast_";
+  ss << dirname << filename << num_folder << ".csv";
+  ss >> filename;
+
+  myfile.open(filename);
+  
+  for(int i = 0; i < laserCloudSurfLast->points.size(); i++ ) {
+    myfile << laserCloudSurfLast->points[i].x << "," << laserCloudSurfLast->points[i].y << "," << laserCloudSurfLast->points[i].z << std::endl;
+  }
+
+  myfile.close();
+
+  ss.clear();
+  filename = "surfMatch_";
+  ss << dirname << filename << num_folder << ".csv";
+  ss >> filename;
+
+  myfile.open(filename);
+  
+  for(int i = 0; i < outPointCloud[0].size(); i++ ) {
+    myfile << outPointCloud[0][i] << "," << outPointCloud[1][i] << std::endl;
+  }
+
+  myfile.close();
+
+
+
+  std::cout << "CORNER" << std::endl << std::endl;
+
+
+
+
+  std::cout << "Size cornerPointsSharp: " << cornerPointsSharp->points.size() << std::endl;
+  std::cout << "Size laserCloudCornerLast: " << laserCloudCornerLast->points.size() << std::endl;
+
+  outPointCloud = cliqueMatching(cornerPointsSharp, laserCloudCornerLast);
+
+  ss.clear();
+  filename = "cornerPointsSharp_";
+  ss << dirname << filename << num_folder << ".csv";
+  ss >> filename;
+
+  myfile.open(filename);
+
+  for(int i = 0; i < cornerPointsSharp->points.size(); i++ ) {
+    myfile << cornerPointsSharp->points[i].x << "," << cornerPointsSharp->points[i].y << "," << cornerPointsSharp->points[i].z << std::endl;
+  }
+
+  myfile.close();
+
+  ss.clear();
+  filename = "laserCloudCornerLast_";
+  ss << dirname << filename << num_folder << ".csv";
+  ss >> filename;
+
+  myfile.open(filename);
+  
+  for(int i = 0; i < laserCloudCornerLast->points.size(); i++ ) {
+    myfile << laserCloudCornerLast->points[i].x << "," << laserCloudCornerLast->points[i].y << "," << laserCloudCornerLast->points[i].z << std::endl;
+  }
+
+  myfile.close();
+
+  ss.clear();
+  filename = "cornerMatch_";
+  ss << dirname << filename << num_folder << ".csv";
+  ss >> filename;
+
+  myfile.open(filename);
+  
+  for(int i = 0; i < outPointCloud[0].size(); i++ ) {
+    myfile << outPointCloud[0][i] << "," << outPointCloud[1][i] << std::endl;
+  }
+
+  myfile.close();
+
+
+  std::cout << std::endl << std::endl;
+  
+
+
+  for (int iterCount1 = 0; iterCount1 < 25; iterCount1++) {
+    laserCloudOri->clear();
+    coeffSel->clear();
+
+    findCorrespondingSurfFeatures(iterCount1);
+
+    if (laserCloudOri->points.size() < 10) continue;
+    if (calculateTransformationSurf(iterCount1) == false) break;
+  }
+
+  for (int iterCount2 = 0; iterCount2 < 25; iterCount2++) {
+    laserCloudOri->clear();
+    coeffSel->clear();
+
+    findCorrespondingCornerFeatures(iterCount2);
+
+    if (laserCloudOri->points.size() < 10) continue;
+    if (calculateTransformationCorner(iterCount2) == false) break;
+  }
+  
+
+}
+
+
 void FeatureAssociation::updateTransformation() {
   if (laserCloudCornerLastNum < 10 || laserCloudSurfLastNum < 100) return;
 
@@ -1164,6 +1310,34 @@ void FeatureAssociation::integrateTransformation() {
   transformSum[3] = tx;
   transformSum[4] = ty;
   transformSum[5] = tz;
+  /*
+  std::cout << "0: " << transformCur[0] << " 1: " << transformCur[1] << " 2: " << transformCur[2] 
+            << " 3: " << transformCur[3] << " 4: " << transformCur[4] << " 5: " << transformCur[5] << std::endl << std::endl;
+
+  std::cout << "0: " << transformSum[0] << " 1: " << transformSum[1] << " 2: " << transformSum[2] 
+            << " 3: " << transformSum[3] << " 4: " << transformSum[4] << " 5: " << transformSum[5] << std::endl << std::endl << std::endl << std::endl;
+  */
+
+  std::ofstream myfile;
+
+  std::string dirname = "/home/javier/Documents/UPMResearchCAR-Robocity/cloudMatcher/Output/";
+  std::stringstream ss;
+
+  ss.clear();
+  std::string filename = "transformation_";
+  ss << dirname << filename << num_folder << ".csv";
+  ss >> filename;
+
+  myfile.open(filename);
+
+  myfile  << transformCur[0] << "," << transformCur[1] << "," << transformCur[2] << "," 
+          << transformCur[3] << "," << transformCur[4] << "," << transformCur[5] << ","
+          << transformSum[0] << "," << transformSum[1] << "," << transformSum[2] << "," 
+          << transformSum[3] << "," << transformSum[4] << "," << transformSum[5] << std::endl;
+  
+  myfile.close();
+
+
 }
 
 void FeatureAssociation::adjustOutlierCloud() {
@@ -1304,7 +1478,9 @@ void FeatureAssociation::runFeatureAssociation() {
       continue;
     }
 
-    updateTransformation();
+    //updateTransformation();
+
+    updateTransformationClique();
 
     integrateTransformation();
 
