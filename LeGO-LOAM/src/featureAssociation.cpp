@@ -53,21 +53,21 @@ FeatureAssociation::FeatureAssociation(ros::NodeHandle &node,
       _input_channel(input_channel),
       _output_channel(output_channel) {
 
-  pubCornerPointsSharp =
-      nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_sharp", 1);
-  pubCornerPointsLessSharp =
-      nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_less_sharp", 1);
-  pubSurfPointsFlat =
-      nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_flat", 1);
-  pubSurfPointsLessFlat =
-      nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_less_flat", 1);
+  pubCornerPointsSharp = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_sharp", 1);
+  pubCornerPointsLessSharp = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_less_sharp", 1);
+  pubSurfPointsFlat = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_flat", 1);
+  pubSurfPointsLessFlat = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_less_flat", 1);
+  
+  //Match
+  pubSurfPointsMatch = nh.advertise<sensor_msgs::PointCloud2>("/cloud_surf_match", 1);
+  pubSurfPointsMatchLast = nh.advertise<sensor_msgs::PointCloud2>("/cloud_surf_match_Last", 1);
+  pubCornerPointsMatch = nh.advertise<sensor_msgs::PointCloud2>("/cloud_corner_match", 1);
+  pubCornerPointsMatchLast = nh.advertise<sensor_msgs::PointCloud2>("/cloud_corner_match_Last", 1);
+  //Match
 
-  _pub_cloud_corner_last =
-      nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_corner_last", 2);
-  _pub_cloud_surf_last =
-      nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surf_last", 2);
-  _pub_outlier_cloudLast =
-      nh.advertise<sensor_msgs::PointCloud2>("/outlier_cloud_last", 2);
+  _pub_cloud_corner_last = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_corner_last", 2);
+  _pub_cloud_surf_last = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surf_last", 2);
+  _pub_outlier_cloudLast = nh.advertise<sensor_msgs::PointCloud2>("/outlier_cloud_last", 2);
   pubLaserOdometry = nh.advertise<nav_msgs::Odometry>("/laser_odom_to_init", 5);
 
   _cycle_count = 0;
@@ -109,6 +109,13 @@ void FeatureAssociation::initializationValue() {
   cornerPointsLessSharp.reset(new pcl::PointCloud<PointType>());
   surfPointsFlat.reset(new pcl::PointCloud<PointType>());
   surfPointsLessFlat.reset(new pcl::PointCloud<PointType>());
+
+  //Match
+  cloudSurfMatch.reset(new pcl::PointCloud<PointType>());
+  cloudSurfMatchLast.reset(new pcl::PointCloud<PointType>());
+  cloudCornerMatch.reset(new pcl::PointCloud<PointType>());
+  cloudCornerMatchLast.reset(new pcl::PointCloud<PointType>());
+  //Match
 
   surfPointsLessFlatScan.reset(new pcl::PointCloud<PointType>());
   surfPointsLessFlatScanDS.reset(new pcl::PointCloud<PointType>());
@@ -1135,7 +1142,7 @@ void FeatureAssociation::updateTransformationClique() {
 
   //std::vector<pcl::PointCloud<PointType>::Ptr> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
   std::vector<std::vector<int>> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
-
+  
   std::ofstream myfile;
 
   std::string dirname = "/home/javier/Documents/UPMResearchCAR-Robocity/cloudMatcher/Output/";
@@ -1151,7 +1158,7 @@ void FeatureAssociation::updateTransformationClique() {
   for(int i = 0; i < surfPointsFlat->points.size(); i++ ) {
     myfile << surfPointsFlat->points[i].x << "," << surfPointsFlat->points[i].y << "," << surfPointsFlat->points[i].z << std::endl;
   }
-
+  
   myfile.close();
 
   ss.clear();
@@ -1174,18 +1181,35 @@ void FeatureAssociation::updateTransformationClique() {
 
   myfile.open(filename);
   
+  //Match
+  cloudSurfMatch->clear();
+  cloudSurfMatchLast->clear();
+  // Primera columna: nueva, Segunda: nube antigua"
   for(int i = 0; i < outPointCloud[0].size(); i++ ) {
-    myfile << outPointCloud[0][i] << "," << outPointCloud[1][i] << std::endl;
+    cloudSurfMatchLast->push_back(laserCloudSurfLast->points[outPointCloud[1][i]]);
+    cloudSurfMatch->push_back(surfPointsFlat->points[outPointCloud[0][i]]);
+    myfile << laserCloudSurfLast->points[outPointCloud[0][i]].x << "," << laserCloudSurfLast->points[outPointCloud[0][i]].y << "," << laserCloudSurfLast->points[outPointCloud[0][i]].z << std::endl;
+    myfile << cloudSurfMatch->points[outPointCloud[1][i]].x << "," << cloudSurfMatch->points[outPointCloud[1][i]].y << "," << cloudSurfMatch->points[outPointCloud[1][i]].z << std::endl;
+
+    // lo comento porque me hago un fichero con los puntos para poder hacer pruebas de calculo de transformaciones
+    // myfile << outPointCloud[0][i] << "," << outPointCloud[1][i] << std::endl;
   }
+  // publicar nube matcheada
+  sensor_msgs::PointCloud2 cloudSurfMatch2;
+  sensor_msgs::PointCloud2 cloudSurfMatchLast2;
+  pcl::toROSMsg(*cloudSurfMatch, cloudSurfMatch2);
+  pcl::toROSMsg(*cloudSurfMatchLast, cloudSurfMatchLast2);
+  cloudSurfMatchLast2.header.stamp = cloudHeader.stamp;
+  cloudSurfMatchLast2.header.frame_id = "/camera";
+  cloudSurfMatch2.header.stamp = cloudHeader.stamp;
+  cloudSurfMatch2.header.frame_id = "/camera";  
+  pubSurfPointsMatch.publish(cloudSurfMatch2);
+  pubSurfPointsMatchLast.publish(cloudSurfMatchLast2);
+  //Match
 
   myfile.close();
 
-
-
   std::cout << "CORNER" << std::endl << std::endl;
-
-
-
 
   std::cout << "Size cornerPointsSharp: " << cornerPointsSharp->points.size() << std::endl;
   std::cout << "Size laserCloudCornerLast: " << laserCloudCornerLast->points.size() << std::endl;
@@ -1225,16 +1249,34 @@ void FeatureAssociation::updateTransformationClique() {
 
   myfile.open(filename);
   
+  //Match
+  cloudCornerMatch->clear();
+  cloudCornerMatchLast->clear();
+  // Primera columna: nueva, Segunda: nube antigua"
   for(int i = 0; i < outPointCloud[0].size(); i++ ) {
+    cloudCornerMatchLast->push_back(laserCloudCornerLast->points[outPointCloud[1][i]]);
+    cloudCornerMatch->push_back(cornerPointsSharp->points[outPointCloud[0][i]]);
+
     myfile << outPointCloud[0][i] << "," << outPointCloud[1][i] << std::endl;
   }
+  // publicar nube matcheada
+  sensor_msgs::PointCloud2 cloudCornerMatch2;
+  sensor_msgs::PointCloud2 cloudCornerMatchLast2;
+  pcl::toROSMsg(*cloudCornerMatch, cloudCornerMatch2);
+  pcl::toROSMsg(*cloudCornerMatchLast, cloudCornerMatchLast2);
+  cloudCornerMatchLast2.header.stamp = cloudHeader.stamp;
+  cloudCornerMatchLast2.header.frame_id = "/camera";
+  cloudCornerMatch2.header.stamp = cloudHeader.stamp;
+  cloudCornerMatch2.header.frame_id = "/camera";  
+  pubCornerPointsMatch.publish(cloudCornerMatch2);
+  pubCornerPointsMatchLast.publish(cloudCornerMatchLast2);
+  //Match
 
   myfile.close();
 
 
   std::cout << std::endl << std::endl;
   
-
 
   for (int iterCount1 = 0; iterCount1 < 25; iterCount1++) {
     laserCloudOri->clear();

@@ -40,6 +40,17 @@ class FeatureAssociation {
   ros::Publisher pubSurfPointsFlat;
   ros::Publisher pubSurfPointsLessFlat;
 
+  //Match
+  pcl::PointCloud<PointType>::Ptr cloudSurfMatch;
+  pcl::PointCloud<PointType>::Ptr cloudSurfMatchLast;
+  ros::Publisher pubSurfPointsMatch;
+  ros::Publisher pubSurfPointsMatchLast;
+  pcl::PointCloud<PointType>::Ptr cloudCornerMatch;
+  pcl::PointCloud<PointType>::Ptr cloudCornerMatchLast;
+  ros::Publisher pubCornerPointsMatch;
+  ros::Publisher pubCornerPointsMatchLast;
+  //Match
+
   pcl::PointCloud<PointType>::Ptr segmentedCloud;
   pcl::PointCloud<PointType>::Ptr outlierCloud;
 
