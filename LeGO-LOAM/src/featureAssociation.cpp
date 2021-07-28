@@ -1128,11 +1128,6 @@ void FeatureAssociation::updateTransformationClique() {
 
   num_folder++;
 
-  std::cout << "SURFACE" << std::endl << std::endl;
-
-  std::cout << "Size surfPointsFlat: " << surfPointsFlat->points.size() << std::endl;
-  std::cout << "Size laserCloudSurfLast: " << laserCloudSurfLast->points.size() << std::endl;
-
   //std::vector<pcl::PointCloud<PointType>::Ptr> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
   std::vector<std::vector<int>> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
 
@@ -1180,15 +1175,6 @@ void FeatureAssociation::updateTransformationClique() {
 
   myfile.close();
 
-
-
-  std::cout << "CORNER" << std::endl << std::endl;
-
-
-
-
-  std::cout << "Size cornerPointsSharp: " << cornerPointsSharp->points.size() << std::endl;
-  std::cout << "Size laserCloudCornerLast: " << laserCloudCornerLast->points.size() << std::endl;
 
   outPointCloud = cliqueMatching(cornerPointsSharp, laserCloudCornerLast);
 
