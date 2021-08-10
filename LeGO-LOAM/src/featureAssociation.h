@@ -7,6 +7,23 @@
 #include <Eigen/Eigenvalues>
 #include <Eigen/QR>
 
+// Clique
+class DDMatch{
+public:
+	int queryIdx;
+	int trainIdx;
+	double distance;
+	DDMatch(int _queryIdx,int _trainIdx,double _distance):queryIdx(_queryIdx), trainIdx(_trainIdx),distance(_distance){
+		
+	};
+	DDMatch(){
+		queryIdx = 0;
+		trainIdx = 0;
+		distance = 0.0f;
+	};
+	
+};   // Clique
+
 class FeatureAssociation {
 
  public:
@@ -125,6 +142,8 @@ class FeatureAssociation {
 
   void findCorrespondingCornerFeatures(int iterCount);
   void findCorrespondingSurfFeatures(int iterCount);
+  // Clique
+  void findCorrespondingFeaturesClique(int numFolder);
 
   bool calculateTransformationSurf(int iterCount);
   bool calculateTransformationCorner(int iterCount);
@@ -132,7 +151,7 @@ class FeatureAssociation {
 
   void checkSystemInitialization();
   void updateTransformation();
-
+  // Clique  
   void updateTransformationClique();
 
   void integrateTransformation();

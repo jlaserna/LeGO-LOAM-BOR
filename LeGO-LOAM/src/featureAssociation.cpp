@@ -373,6 +373,7 @@ void FeatureAssociation::extractFeatures() {
   }
 }
 
+
 void FeatureAssociation::TransformToStart(PointType const *const pi,
                                           PointType *const po) {
   float s = 10 * (pi->intensity - int(pi->intensity));
@@ -397,6 +398,7 @@ void FeatureAssociation::TransformToStart(PointType const *const pi,
   po->z = sin(ry) * x2 + cos(ry) * z2;
   po->intensity = pi->intensity;
 }
+
 
 void FeatureAssociation::TransformToEnd(PointType const *const pi,
                                         PointType *const po) {
@@ -474,6 +476,7 @@ void FeatureAssociation::AccumulateRotation(float cx, float cy, float cz,
       sin(cx) * (sin(ly) * sin(lz) + cos(ly) * cos(lz) * sin(lx));
   oz = atan2(srzcrx / cos(ox), crzcrx / cos(ox));
 }
+
 
 void FeatureAssociation::findCorrespondingCornerFeatures(int iterCount) {
   int cornerPointsSharpNum = cornerPointsSharp->points.size();
@@ -592,6 +595,48 @@ void FeatureAssociation::findCorrespondingCornerFeatures(int iterCount) {
     }
   }
 }
+
+
+void FeatureAssociation::findCorrespondingFeaturesClique( int num_folder) {
+
+  int cornerPointsSharpNum = cornerPointsSharp->points.size();
+  std::vector<std::vector<DDMatch>> matches12(cornerPointsSharpNum);
+  int knn = 3;
+
+  for (int i = 0; i < cornerPointsSharpNum; i++) {
+    PointType pointSel;
+    TransformToStart(&cornerPointsSharp->points[i], &pointSel);
+
+    kdtreeCornerLast.nearestKSearch(pointSel, knn, pointSearchInd, pointSearchSqDis);
+      
+		for( int j = 0; j < knn; j++) {
+			DDMatch match = DDMatch(i, pointSearchInd[j], pointSearchSqDis[j]);
+			matches12[i].push_back(match);
+		}
+
+  }
+
+  std::ofstream myfile;
+  std::string dirname = "/home/javier/Documents/UPMResearchCAR-Robocity/cloudMatcher/Output/";
+  std::stringstream ss;
+
+  ss.clear();
+  std::string filename = "cornerMatch_";
+  ss << dirname << filename << num_folder << ".csv";
+  ss >> filename;
+
+  myfile.open(filename);
+
+  std::vector<std::vector<int>> outPointCloud = cliqueMatching2(matches12, cornerPointsSharp, laserCloudCornerLast);
+        
+  for(int i = 0; i < outPointCloud[0].size(); i++ ) {
+    myfile << outPointCloud[0][i] << "," << outPointCloud[1][i] << std::endl;
+  }
+
+  myfile.close();
+
+}
+
 
 void FeatureAssociation::findCorrespondingSurfFeatures(int iterCount) {
   int surfPointsFlatNum = surfPointsFlat->points.size();
@@ -840,6 +885,7 @@ bool FeatureAssociation::calculateTransformationSurf(int iterCount) {
   return true;
 }
 
+
 bool FeatureAssociation::calculateTransformationCorner(int iterCount) {
   int pointSelNum = laserCloudOri->points.size();
 
@@ -945,6 +991,7 @@ bool FeatureAssociation::calculateTransformationCorner(int iterCount) {
   }
   return true;
 }
+
 
 bool FeatureAssociation::calculateTransformation(int iterCount) {
   int pointSelNum = laserCloudOri->points.size();
@@ -1128,9 +1175,6 @@ void FeatureAssociation::updateTransformationClique() {
 
   num_folder++;
 
-  //std::vector<pcl::PointCloud<PointType>::Ptr> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
-  std::vector<std::vector<int>> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
-
   std::ofstream myfile;
 
   std::string dirname = "/home/javier/Documents/UPMResearchCAR-Robocity/cloudMatcher/Output/";
@@ -1167,6 +1211,9 @@ void FeatureAssociation::updateTransformationClique() {
   ss << dirname << filename << num_folder << ".csv";
   ss >> filename;
 
+  //std::vector<pcl::PointCloud<PointType>::Ptr> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
+  std::vector<std::vector<int>> outPointCloud = cliqueMatching(surfPointsFlat, laserCloudSurfLast);
+
   myfile.open(filename);
   
   for(int i = 0; i < outPointCloud[0].size(); i++ ) {
@@ -1175,8 +1222,7 @@ void FeatureAssociation::updateTransformationClique() {
 
   myfile.close();
 
-
-  outPointCloud = cliqueMatching(cornerPointsSharp, laserCloudCornerLast);
+  //outPointCloud = cliqueMatching(cornerPointsSharp, laserCloudCornerLast);
 
   ss.clear();
   filename = "cornerPointsSharp_";
@@ -1204,23 +1250,24 @@ void FeatureAssociation::updateTransformationClique() {
 
   myfile.close();
 
-  ss.clear();
-  filename = "cornerMatch_";
-  ss << dirname << filename << num_folder << ".csv";
-  ss >> filename;
+  //ss.clear();
+  //filename = "cornerMatchold_";
+  //ss << dirname << filename << num_folder << ".csv";
+  //ss >> filename;
 
-  myfile.open(filename);
+  //myfile.open(filename);
   
-  for(int i = 0; i < outPointCloud[0].size(); i++ ) {
-    myfile << outPointCloud[0][i] << "," << outPointCloud[1][i] << std::endl;
-  }
+  //for(int i = 0; i < outPointCloud[0].size(); i++ ) {
+  //  myfile << outPointCloud[0][i] << "," << outPointCloud[1][i] << std::endl;
+  //}
 
-  myfile.close();
+  //myfile.close();
 
-
-  std::cout << std::endl << std::endl;
+  //std::cout << std::endl << std::endl;
   
+///////////////////////////////////////////////////////////////////////////////////
 
+  findCorrespondingFeaturesClique(num_folder);
 
   for (int iterCount1 = 0; iterCount1 < 25; iterCount1++) {
     laserCloudOri->clear();
@@ -1456,7 +1503,7 @@ void FeatureAssociation::runFeatureAssociation() {
 
     extractFeatures();
 
-    publishCloud();  // cloud for visualization
+    publishCloud();         // cloud for visualization
 
     // Feature Association
     if (!systemInitedLM) {
@@ -1465,14 +1512,13 @@ void FeatureAssociation::runFeatureAssociation() {
     }
 
     //updateTransformation();
-
     updateTransformationClique();
 
     integrateTransformation();
 
     publishOdometry();
 
-    publishCloudsLast();  // cloud to mapOptimization
+    publishCloudsLast();   // cloud to mapOptimization
 
     //--------------
     _cycle_count++;

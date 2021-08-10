@@ -42,6 +42,7 @@ int main(int argc, char** argv) {
   FeatureAssociation FA(nh, projection_out_channel,
                         association_out_channel);
 
+// 
   MapOptimization MO(nh, association_out_channel);
 
   TransformFusion TF(nh);
